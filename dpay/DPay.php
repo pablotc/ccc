@@ -54,6 +54,7 @@ class DPay extends PaymentModule
 
 		return $this->display(__FILE__, 'views/templates/hook/payment.tpl');
 	}	
+
 	
 	function hookInvoice($params){
 		$id_order = $params['id_order'];
@@ -86,7 +87,31 @@ class DPay extends PaymentModule
 		return $this->display(__FILE__, 'views/templates/front/payment_execution.tpl');
 	}
 	
-	
+	public function hookPaymentReturn($params)
+	{
+		if (!$this->active)
+			return;
+
+		$state = $params['objOrder']->getCurrentState();
+
+		//if ($state == Configuration::get('PS_OS_BANKWIRE') || $state == Configuration::get('PS_OS_OUTOFSTOCK'))
+		if ($state == Configuration::get('PS_OS_PREPARATION'))
+		{
+			$this->smarty->assign(array(
+				'total_to_pay' => Tools::displayPrice($params['total_to_pay'], $params['currencyObj'], false),
+				'bankwireDetails' => Tools::nl2br($this->details),
+				'bankwireAddress' => Tools::nl2br($this->address),
+				'bankwireOwner' => $this->owner,
+				'status' => 'ok',
+				'id_order' => $params['objOrder']->id
+			));
+			if (isset($params['objOrder']->reference) && !empty($params['objOrder']->reference))
+				$this->smarty->assign('reference', $params['objOrder']->reference);
+		}
+		else
+			$this->smarty->assign('status', 'failed');
+		return $this->display(__FILE__, 'payment_return.tpl');
+	}	
 	
 	
 }
