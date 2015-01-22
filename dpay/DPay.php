@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (!defined('_PS_VERSION_'))
   exit;
  
@@ -78,13 +78,65 @@ class DPay extends PaymentModule
 		if (!$this->active)
 			return "";
 		global $cookie, $smarty;
-		 
+		
+		/*
 		$smarty->assign(array(
 			'this_path' => $this->_path,
 			'this_path_ssl' => (Configuration::get('PS_SSL_ENABLED') ? 'https://' : 'http://').htmlspecialchars($_SERVER['HTTP_HOST'], ENT_COMPAT, 'UTF-8').__PS_BASE_URI__.'modules/'.$this->name.'/'
 		));
+		*/ 
 		 
-		return $this->display(__FILE__, 'views/templates/front/payment_execution.tpl');
+		//esto ya funciona pero lo hardcodee... necesito probar con pesos shilenos
+		//$total = floatval(number_format($cart->getOrderTotal(true, 3), 2, '.', ''));
+		$total = 5990;
+		$total_string = "${total}00";
+		
+		$TBK_ORDEN_COMPRA = $cart->id;
+		$TBK_ID_SESION = date("Ymdhis");
+		
+		$fields = array(
+			'TBK_ORDEN_COMPRA'     => $TBK_ORDEN_COMPRA,
+			'TBK_TIPO_TRANSACCION' => 'TR_NORMAL',
+			'TBK_MONTO'            => $total_string,
+			'TBK_ID_SESION'        => $TBK_ID_SESION,
+			//REVISAR URL EXITO
+			'TBK_URL_EXITO'        => "pago_exito.php",
+			//REVISAR URL FRACASO
+			'TBK_URL_FRACASO'      => "pago_fracaso",
+		);
+		
+		$data = http_build_query($fields);
+		
+		/***RUTA DONDE SE GUARDA EL LOG - DEBE ESTAR CHMOD 777 carpeta cierre***/
+		/***chmod 777 -R cierre***/
+		//Revisar Ruta
+		$myPath = "/var/www/html/cgi-bin/cierre/dato".$TBK_ID_SESION.".log";
+		
+		//Grabado de datos en archivo de transaccion
+		$fic = fopen($myPath, "w+");
+		$linea="$total_string;$TBK_ORDEN_COMPRA";
+		fwrite ($fic,$linea);
+		fclose($fic);
+		
+		/*** CURL DEBE ESTAR INSTALADO EN EL SERVIDOR***/
+		/*** apt-get install curl libcurl3 libcurl3-dev php5-curl***/
+		/*** SE DEBE REINICIAR APACHE2 ***/
+		/*** service apache2 restart ***/
+		
+		//REVISAR RUTA
+		$url = 'sportapp.cl/cgi-bin/tbk_bp_pago.cgi';
+		$ch = curl_init($url);
+
+		curl_setopt($ch, CURLOPT_POST, true);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+		$response = curl_exec($ch);
+		curl_close($ch);
+		echo $response;
+
+		//Este último paso nos debería redirigir a webpay
+		
 	}
 	
 	public function hookPaymentReturn($params)
